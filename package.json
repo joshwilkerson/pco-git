@@ -3,8 +3,13 @@
   "version": "1.0.0-alpha.0",
   "description": "A GitHub toolkit for your terminal",
   "main": "index.js",
+  "type": "module",
+  "bin": {
+    "pco-git": "./index.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -15,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/joshwilkerson/pco-git/issues"
   },
-  "homepage": "https://github.com/joshwilkerson/pco-git#readme"
+  "homepage": "https://github.com/joshwilkerson/pco-git#readme",
+  "dependencies": {
+    "@clack/prompts": "^0.10.0"
+  }
 }
