@@ -1,0 +1,19 @@
+{
+  "name": "pco-git",
+  "version": "1.0.0-alpha.0",
+  "description": "A GitHub toolkit for your terminal",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshwilkerson/pco-git.git"
+  },
+  "author": "Josh Wilkerson <jgwilkerson@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/joshwilkerson/pco-git/issues"
+  },
+  "homepage": "https://github.com/joshwilkerson/pco-git#readme"
+}
