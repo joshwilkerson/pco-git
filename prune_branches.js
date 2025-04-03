@@ -1,4 +1,4 @@
-import { multiselect, log, outro, spinner } from "@clack/prompts"
+import { select, confirm, log, outro, spinner } from "@clack/prompts"
 import { exec } from "child_process"
 import util from "util"
 import color from "picocolors"
@@ -32,7 +32,6 @@ export async function pruneBranches() {
     s.stop("Fetched remote branches")
 
     // Determine the remote primary branch.
-    // This uses the symbolic ref, which usually outputs something like "refs/remotes/origin/main"
     let remotePrimary = "origin/main" // default fallback
     try {
       const { stdout: remotePrimaryOutput } = await execPromise(
@@ -66,50 +65,79 @@ export async function pruneBranches() {
       return
     }
 
-    // For each prunable branch, get the commit diff relative to the remote primary branch.
-    const options = await Promise.all(
-      branchesToPrune.map(async ({ branch }) => {
-        let ahead = "N/A"
-        let behind = "N/A"
-        try {
-          const { stdout: diffOutput } = await execPromise(
-            `git rev-list --left-right --count ${branch}...${remotePrimary}`
-          )
-          // The output is something like "5    3"
-          const [a, b] = diffOutput.trim().split(/\s+/)
-          ahead = a
-          behind = b
-        } catch (err) {
-          // If there's an error (e.g. no common base), keep N/A values.
-          log.warn(`Could not compute diff for branch ${branch}`)
-        }
-        return {
-          label: `${branch} (${color.green("↑" + ahead)} / ${color.red(
-            "↓" + behind
-          )})`,
-          value: branch,
-        }
+    // Process each prunable branch individually
+    for (const { branch } of branchesToPrune) {
+      // Get commit diff counts for branch relative to remotePrimary.
+      let ahead = "N/A"
+      let behind = "N/A"
+      try {
+        const { stdout: diffOutput } = await execPromise(
+          `git rev-list --left-right --count ${branch}...${remotePrimary}`
+        )
+        // diffOutput returns something like "5    3"
+        const [a, b] = diffOutput.trim().split(/\s+/)
+        ahead = a
+        behind = b
+      } catch (err) {
+        log.warn(`Could not compute diff for branch ${branch}`)
+      }
+
+      // Provide a nested prompt for the branch.
+      const action = await select({
+        message: `Branch: ${branch} (${color.green("↑" + ahead)} / ${color.red(
+          "↓" + behind
+        )})`,
+        options: [
+          { label: "Delete local branch", value: "delete" },
+          { label: "See diff", value: "diff" },
+          { label: "Skip", value: "skip" },
+        ],
       })
-    )
 
-    // Allow the user to select which branches to delete via a multi-select prompt
-    const branchesToDelete = await multiselect({
-      message: "Select branches to delete:",
-      options,
-    })
+      if (action === "delete") {
+        log.step(`Deleting branch: ${branch}`)
+        await execPromise(`git branch -D ${branch}`)
+      } else if (action === "diff") {
+        // Retrieve detailed commit logs for the diff.
+        let aheadCommits = ""
+        let behindCommits = ""
+        try {
+          const { stdout: aheadOutput } = await execPromise(
+            `git log --oneline ${remotePrimary}..${branch}`
+          )
+          aheadCommits = aheadOutput.trim()
+        } catch (err) {
+          aheadCommits = "Could not retrieve ahead commits."
+        }
+        try {
+          const { stdout: behindOutput } = await execPromise(
+            `git log --oneline ${branch}..${remotePrimary}`
+          )
+          behindCommits = behindOutput.trim()
+        } catch (err) {
+          behindCommits = "Could not retrieve behind commits."
+        }
 
-    if (!branchesToDelete || branchesToDelete.length === 0) {
-      log.warn("No branches selected for deletion.")
-      return
+        log.info(`\nDiff for branch ${branch}:`)
+        log.info(`${color.green("Commits ahead:")}\n${aheadCommits || "None"}`)
+        log.info(`${color.red("Commits behind:")}\n${behindCommits || "None"}`)
+
+        // Ask if the user wants to delete the branch after viewing diff.
+        const confirmDelete = await confirm({
+          message: `Do you want to delete branch ${branch}?`,
+        })
+        if (confirmDelete) {
+          log.step(`Deleting branch: ${branch}`)
+          await execPromise(`git branch -D ${branch}`)
+        } else {
+          log.info(`Skipping deletion for branch: ${branch}`)
+        }
+      } else if (action === "skip") {
+        log.info(`Skipping branch: ${branch}`)
+      }
     }
 
-    // Delete each selected branch
-    for (const branch of branchesToDelete) {
-      log.step(`Deleting branch: ${branch}`)
-      await execPromise(`git branch -D ${branch}`)
-    }
-
-    outro("Selected branches have been deleted.")
+    outro("Done processing prunable branches.")
   } catch (error) {
     log.error("Error during prune operation: " + error)
   }
