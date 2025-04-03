@@ -101,8 +101,10 @@ export async function pruneBranches() {
       return
     }
 
-    // Build a confirmation message listing all branches that will be deleted.
-    const branchList = branchesToDelete.join("\n")
+    // Build a confirmation message listing all branches that will be deleted with dashes.
+    const branchList = branchesToDelete
+      .map((branch) => `- ${branch}`)
+      .join("\n")
     const confirmMessage = `The following branches will be deleted:\n\n${branchList}\n\nAre you sure you want to proceed?`
     const deletionConfirmed = await confirm({ message: confirmMessage })
     if (!deletionConfirmed) {
