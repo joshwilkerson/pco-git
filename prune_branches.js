@@ -1,6 +1,7 @@
 import { multiselect, log, outro, spinner } from "@clack/prompts"
 import { exec } from "child_process"
 import util from "util"
+import color from "picocolors"
 
 // Promisify exec for async/await usage
 const execPromise = util.promisify(exec)
@@ -83,7 +84,9 @@ export async function pruneBranches() {
           log.warn(`Could not compute diff for branch ${branch}`)
         }
         return {
-          label: `${branch} (ahead ${ahead}, behind ${behind})`,
+          label: `${branch} (${color.green("↑" + ahead)} / ${color.red(
+            "↓" + behind
+          )})`,
           value: branch,
         }
       })
