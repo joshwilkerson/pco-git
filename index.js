@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { intro, outro, select, log } from "@clack/prompts"
+import color from "picocolors"
 import { pruneBranches } from "./prune_branches.js"
 
 async function main() {
@@ -8,7 +9,12 @@ async function main() {
   const option = await select({
     message: "Please choose an option:",
     options: [
-      { label: "Prune branches", value: "prune" },
+      {
+        label: `Prune branches ${color.gray(
+          "(Removes local branches not present on remote)"
+        )}`,
+        value: "prune",
+      },
       { label: "Option 2", value: "2" },
     ],
   })
