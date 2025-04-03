@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 import { intro, outro, select, log } from "@clack/prompts"
 import color from "picocolors"
+import { intros, outros } from "./salutations.js"
 import { pruneBranches } from "./prune_branches.js"
 
 async function main() {
-  intro("Welcome to pco-git CLI")
+  const randomIntro = Math.floor(Math.random() * intros.length)
+  const randomOutro = Math.floor(Math.random() * outros.length)
+
+  intro(intros[randomIntro])
 
   const option = await select({
     message: "Please choose an option:",
@@ -27,7 +31,7 @@ async function main() {
     log.warn("No valid option selected.")
   }
 
-  outro("Exiting pco-git CLI")
+  outro(outros[randomOutro])
 }
 
 main()
