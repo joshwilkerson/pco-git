@@ -101,12 +101,16 @@ export async function pruneBranches() {
       return
     }
 
-    // Build a confirmation message listing all branches that will be deleted with dashes.
-    const branchList = branchesToDelete
-      .map((branch) => `- ${branch}`)
-      .join("\n")
-    const confirmMessage = `The following branches will be deleted:\n\n${branchList}\n\nAre you sure you want to proceed?`
-    const deletionConfirmed = await confirm({ message: confirmMessage })
+    // Log the confirmation section like "Upstream repositories:"
+    log.info("The following branches will be deleted:")
+    branchesToDelete.forEach((branch) => {
+      log.info(`- ${branch}`)
+    })
+
+    // Ask for confirmation
+    const deletionConfirmed = await confirm({
+      message: "Are you sure you want to proceed?",
+    })
     if (!deletionConfirmed) {
       log.info("Deletion cancelled.")
       return
