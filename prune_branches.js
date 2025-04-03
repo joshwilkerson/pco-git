@@ -30,20 +30,34 @@ export async function pruneBranches() {
     await execPromise("git fetch --prune")
     s.stop("Fetched remote branches")
 
+    // Determine the remote primary branch.
+    // This uses the symbolic ref, which usually outputs something like "refs/remotes/origin/main"
+    let remotePrimary = "origin/main" // default fallback
+    try {
+      const { stdout: remotePrimaryOutput } = await execPromise(
+        "git symbolic-ref refs/remotes/origin/HEAD"
+      )
+      remotePrimary = remotePrimaryOutput.trim().replace("refs/remotes/", "")
+    } catch (err) {
+      log.warn(
+        "Could not determine remote primary branch, defaulting to origin/main."
+      )
+    }
+
+    // Get formatted local branch info: branch name and upstream (if any)
     const { stdout: formattedBranches } = await execPromise(
       'git branch --format "%(refname:short) %(upstream)"'
     )
 
+    // Filter for branches with no upstream (i.e. prunable branches)
     const branchesToPrune = formattedBranches
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line !== "")
       .map((line) => {
-        // Split on whitespace.
         const parts = line.split(/\s+/)
         return { branch: parts[0], upstream: parts[1] || "" }
       })
-      // Only keep branches that do not have an upstream.
       .filter(({ upstream }) => upstream === "")
 
     if (branchesToPrune.length === 0) {
@@ -51,13 +65,34 @@ export async function pruneBranches() {
       return
     }
 
-    // Allow the user to select which branches to delete via a multi-select prompt.
+    // For each prunable branch, get the commit diff relative to the remote primary branch.
+    const options = await Promise.all(
+      branchesToPrune.map(async ({ branch }) => {
+        let ahead = "N/A"
+        let behind = "N/A"
+        try {
+          const { stdout: diffOutput } = await execPromise(
+            `git rev-list --left-right --count ${branch}...${remotePrimary}`
+          )
+          // The output is something like "5    3"
+          const [a, b] = diffOutput.trim().split(/\s+/)
+          ahead = a
+          behind = b
+        } catch (err) {
+          // If there's an error (e.g. no common base), keep N/A values.
+          log.warn(`Could not compute diff for branch ${branch}`)
+        }
+        return {
+          label: `${branch} (ahead ${ahead}, behind ${behind})`,
+          value: branch,
+        }
+      })
+    )
+
+    // Allow the user to select which branches to delete via a multi-select prompt
     const branchesToDelete = await multiselect({
       message: "Select branches to delete:",
-      options: branchesToPrune.map(({ branch }) => ({
-        label: branch,
-        value: branch,
-      })),
+      options,
     })
 
     if (!branchesToDelete || branchesToDelete.length === 0) {
@@ -65,7 +100,7 @@ export async function pruneBranches() {
       return
     }
 
-    // Delete each selected branch.
+    // Delete each selected branch
     for (const branch of branchesToDelete) {
       log.step(`Deleting branch: ${branch}`)
       await execPromise(`git branch -D ${branch}`)
