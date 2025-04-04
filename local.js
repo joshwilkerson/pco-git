@@ -15,17 +15,15 @@ exec("npm pack", (error, stdout, stderr) => {
   const fullPath = path.resolve(process.cwd(), filename)
   console.log(`Created package: ${fullPath}`)
 
-  const installCommand = `npm i -g ${fullPath}`
-  console.log(`Running: ${installCommand}`)
-
-  exec(installCommand, (installError, installStdout, installStderr) => {
-    if (installError) {
-      console.error(`Error installing package: ${installError.message}`)
+  // Use pbcopy to copy the full path to the clipboard on macOS
+  exec(`echo "${fullPath}" | pbcopy`, (copyError, copyStdout, copyStderr) => {
+    if (copyError) {
+      console.error(`Error copying to clipboard: ${copyError.message}`)
       process.exit(1)
     }
-    if (installStderr) {
-      console.error(`npm install stderr: ${installStderr}`)
+    if (copyStderr) {
+      console.error(`pbcopy stderr: ${copyStderr}`)
     }
-    console.log(`Installed package globally:\n${installStdout}`)
+    console.log(`Copied ${fullPath} to clipboard`)
   })
 })
