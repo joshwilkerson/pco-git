@@ -1,4 +1,13 @@
-import { multiselect, log, outro, spinner, confirm } from "@clack/prompts"
+import {
+  multiselect,
+  log,
+  outro,
+  spinner,
+  confirm,
+  text,
+  group,
+  cancel,
+} from "@clack/prompts"
 import { exec } from "child_process"
 import util from "util"
 import color from "picocolors"
@@ -27,6 +36,7 @@ export async function pruneBranches() {
     await execPromise("git fetch --prune")
     s.stop("Fetched remote branches")
 
+    // Determine the remote primary branch.
     let remotePrimary = "origin/main" // default fallback
     try {
       const { stdout: remotePrimaryOutput } = await execPromise(
@@ -39,28 +49,58 @@ export async function pruneBranches() {
       )
     }
 
-    const { stdout: formattedBranches } = await execPromise(
-      'git branch --format "%(refname:short) %(upstream)"'
+    // Get list of local branches.
+    const { stdout: localBranchesOutput } = await execPromise(
+      'git branch --format="%(refname:short)"'
     )
-
-    const branchesToPrune = formattedBranches
+    const localBranches = localBranchesOutput
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line !== "")
-      .map((line) => {
-        const parts = line.split(/\s+/)
-        return { branch: parts[0], upstream: parts[1] || "" }
-      })
-      .filter(({ upstream }) => upstream === "")
+      .sort()
 
-    if (branchesToPrune.length === 0) {
+    // Get list of remote branches (stripping the "origin/" prefix).
+    const { stdout: remoteBranchesOutput } = await execPromise(
+      'git branch -r --format="%(refname:short)"'
+    )
+    const remoteBranches = remoteBranchesOutput
+      .split("\n")
+      .map((line) => line.trim().replace(/^origin\//, ""))
+      .filter((line) => line !== "")
+      .sort()
+
+    // Identify orphaned branches via comm-style logic.
+    const orphanedBranchesFromComm = localBranches.filter(
+      (branch) => !remoteBranches.includes(branch)
+    )
+
+    // Also identify branches marked [gone] in verbose output.
+    const { stdout: verboseBranchesOutput } = await execPromise(
+      "git branch -vv"
+    )
+    const orphanedBranchesFromGone = verboseBranchesOutput
+      .split("\n")
+      .map((line) => {
+        if (line.includes("[gone]")) {
+          const parts = line.trim().split(/\s+/)
+          return parts[0] === "*" ? parts[1] : parts[0]
+        }
+      })
+      .filter(Boolean)
+
+    // Combine both lists, removing duplicates.
+    const orphanedBranches = Array.from(
+      new Set([...orphanedBranchesFromComm, ...orphanedBranchesFromGone])
+    )
+
+    if (orphanedBranches.length === 0) {
       log.warn("👍 No local branches found that are not present upstream.")
       return
     }
 
-    // For each prunable branch, get the diff info and last commit date.
+    // For each orphaned branch, get diff info and last commit date.
     const options = await Promise.all(
-      branchesToPrune.map(async ({ branch }) => {
+      orphanedBranches.map(async (branch) => {
         let ahead = "N/A"
         let behind = "N/A"
         try {
@@ -78,10 +118,8 @@ export async function pruneBranches() {
           const { stdout: dateOutput } = await execPromise(
             `git log -1 --format=%cd ${branch}`
           )
-          // Parse and reformat the date as "M/D/YY h:mm AM/PM"
           const rawDate = dateOutput.trim()
           const parsedDate = new Date(rawDate)
-          // Format the date; this may produce "4/3/25, 4:38 PM" so we remove the comma.
           lastCommitDate = parsedDate
             .toLocaleString("en-US", {
               month: "numeric",
@@ -127,6 +165,47 @@ export async function pruneBranches() {
       return
     }
 
+    // Before deletion, ensure we're on the main branch.
+    const { stdout: currentBranchOutput } = await execPromise(
+      "git rev-parse --abbrev-ref HEAD"
+    )
+    const currentBranch = currentBranchOutput.trim()
+    if (currentBranch !== "main") {
+      // Group the branch-switching logic with stash prompt.
+      const groupResult = await group(
+        {
+          stashMessage: async () => {
+            const { stdout: statusOutput } = await execPromise(
+              "git status --porcelain"
+            )
+            if (statusOutput.trim() !== "") {
+              const msg = await text({
+                message: "You have uncommitted changes. Enter a stash message:",
+              })
+              return msg
+            }
+            return ""
+          },
+        },
+        {
+          onCancel: () => {
+            cancel("Operation cancelled.")
+            process.exit(0)
+          },
+        }
+      )
+
+      const switchSpinner = spinner()
+      switchSpinner.start("Switching to main branch...")
+      if (groupResult.stashMessage) {
+        await execPromise(`git stash push -m "${groupResult.stashMessage}"`)
+      }
+      await execPromise("git checkout main")
+      switchSpinner.stop("Switched to main branch.")
+      log.info("Switched to main branch.")
+    }
+
+    // Proceed with deletion.
     const deleteSpinner = spinner()
     deleteSpinner.start("Deleting local branches...")
     for (const branch of branchesToDelete) {
