@@ -6,8 +6,8 @@ import {
   spinner,
   confirm,
   text,
-  group,
   cancel,
+  isCancel,
 } from "@clack/prompts"
 import { exec } from "child_process"
 import util from "util"
@@ -70,7 +70,7 @@ export async function pruneBranches() {
       .filter((line) => line !== "")
       .sort()
 
-    // Identify orphaned branches via comm-style logic.
+    // Identify orphaned branches via comm‑style logic.
     const orphanedBranchesFromComm = localBranches.filter(
       (branch) => !remoteBranches.includes(branch)
     )
@@ -166,46 +166,34 @@ export async function pruneBranches() {
       return
     }
 
-    // Switch to main branch if not already on it, with a spinner and clack group.
+    // Before deletion, ensure we're on the main branch.
     const { stdout: currentBranchOutput } = await execPromise(
       "git rev-parse --abbrev-ref HEAD"
     )
     const currentBranch = currentBranchOutput.trim()
     if (currentBranch !== "main") {
-      // Start a spinner for switching branch.
       const switchSpinner = spinner()
       switchSpinner.start("Switching to main branch...")
 
-      // Group: check for uncommitted changes and prompt for stash message if needed.
-      const groupResult = await group(
-        {
-          stashMessage: async () => {
-            const { stdout: statusOutput } = await execPromise(
-              "git status --porcelain"
-            )
-            if (statusOutput.trim() !== "") {
-              const msg = await text({
-                message: "You have uncommitted changes. Enter a stash message:",
-              })
-              return msg
-            }
-            return ""
-          },
-        },
-        {
-          onCancel: () => {
-            cancel("Operation cancelled.")
-            process.exit(0)
-          },
-        }
+      // Check for uncommitted changes.
+      const { stdout: statusOutput } = await execPromise(
+        "git status --porcelain"
       )
-
-      if (groupResult.stashMessage) {
-        await execPromise(`git stash push -m "${groupResult.stashMessage}"`)
+      let stashMessage = ""
+      if (statusOutput.trim() !== "") {
+        stashMessage = await text({
+          message: "You have uncommitted changes. Add a stash message:",
+        })
+        if (isCancel(stashMessage)) {
+          cancel("Operation cancelled.")
+          process.exit(0)
+        }
+      }
+      if (stashMessage) {
+        await execPromise(`git stash push -m "${stashMessage}"`)
       }
       await execPromise("git checkout main")
       switchSpinner.stop("Switched to main branch.")
-      log.info("Switched to main branch.")
     }
 
     const deleteSpinner = spinner()
@@ -214,7 +202,7 @@ export async function pruneBranches() {
       log.step(`Deleting local branch: ${branch}`)
       await execPromise(`git branch -D ${branch}`)
     }
-    deleteSpinner.stop("Local branches deleted.")
+    deleteSpinner.stop("")
     outro("Selected branches have been deleted.")
   } catch (error) {
     log.error("Error during prune operation: " + error)
