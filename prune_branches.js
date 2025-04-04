@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import {
   multiselect,
   log,
@@ -98,7 +99,7 @@ export async function pruneBranches() {
       return
     }
 
-    // For each orphaned branch, get diff info and last commit date.
+    // For each orphaned branch, get the diff info and last commit date.
     const options = await Promise.all(
       orphanedBranches.map(async (branch) => {
         let ahead = "N/A"
@@ -165,13 +166,17 @@ export async function pruneBranches() {
       return
     }
 
-    // Before deletion, ensure we're on the main branch.
+    // Switch to main branch if not already on it, with a spinner and clack group.
     const { stdout: currentBranchOutput } = await execPromise(
       "git rev-parse --abbrev-ref HEAD"
     )
     const currentBranch = currentBranchOutput.trim()
     if (currentBranch !== "main") {
-      // Group the branch-switching logic with stash prompt.
+      // Start a spinner for switching branch.
+      const switchSpinner = spinner()
+      switchSpinner.start("Switching to main branch...")
+
+      // Group: check for uncommitted changes and prompt for stash message if needed.
       const groupResult = await group(
         {
           stashMessage: async () => {
@@ -195,8 +200,6 @@ export async function pruneBranches() {
         }
       )
 
-      const switchSpinner = spinner()
-      switchSpinner.start("Switching to main branch...")
       if (groupResult.stashMessage) {
         await execPromise(`git stash push -m "${groupResult.stashMessage}"`)
       }
@@ -205,7 +208,6 @@ export async function pruneBranches() {
       log.info("Switched to main branch.")
     }
 
-    // Proceed with deletion.
     const deleteSpinner = spinner()
     deleteSpinner.start("Deleting local branches...")
     for (const branch of branchesToDelete) {
