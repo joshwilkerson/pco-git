@@ -1,19 +1,38 @@
 {
   "name": "pco-git",
-  "version": "1.0.0-alpha.0",
-  "description": "A GitHub toolkit for your terminal",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/joshwilkerson/pco-git.git"
-  },
-  "author": "Josh Wilkerson <jgwilkerson@gmail.com>",
+  "version": "0.0.0-alpha.0",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/joshwilkerson/pco-git/issues"
+  "bin": "dist/cli.js",
+  "type": "module",
+  "engines": {
+    "node": ">=16"
   },
-  "homepage": "https://github.com/joshwilkerson/pco-git#readme"
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node --no-warnings dist/cli.js",
+    "test": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "ink": "^5.2.0",
+    "meow": "^13.2.0",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "ava": "^6.2.0",
+    "chalk": "^5.4.1",
+    "eslint": "^9.24.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "ink-testing-library": "^4.0.0",
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.98.0"
+  }
 }
