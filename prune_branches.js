@@ -179,18 +179,17 @@ export async function pruneBranches() {
       const { stdout: statusOutput } = await execPromise(
         "git status --porcelain"
       )
-      let stashMessage = ""
       if (statusOutput.trim() !== "") {
-        stashMessage = await text({
+        const stashMessage = await text({
           message: "You have uncommitted changes. Add a stash message:",
         })
         if (isCancel(stashMessage)) {
           cancel("Operation cancelled.")
           process.exit(0)
         }
-      }
-      if (stashMessage) {
-        await execPromise(`git stash push -m "${stashMessage}"`)
+        if (stashMessage) {
+          await execPromise(`git stash push -m "${stashMessage}"`)
+        }
       }
       await execPromise("git checkout main")
       switchSpinner.stop("Switched to main branch.")
