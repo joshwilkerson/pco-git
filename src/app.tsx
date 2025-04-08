@@ -3,9 +3,10 @@ import { Text } from "ink"
 import { Select } from "@inkjs/ui"
 import chalk from "chalk"
 import PruneBranches from "./prune_branches.js"
+import OpenPRs from "./open_prs.js"
 
 export default function App() {
-  const [view, setView] = useState<"menu" | "prune">("menu")
+  const [view, setView] = useState<"menu" | "prune" | "open_prs">("menu")
 
   if (view === "menu") {
     return (
@@ -21,8 +22,10 @@ export default function App() {
               value: "prune",
             },
             {
-              label: "Option 2 (Not implemented)",
-              value: "option2",
+              label: `View open PRs ${chalk.gray(
+                "(select a PR to open in your browser)"
+              )}`,
+              value: "open_prs",
             },
             {
               label: "Option 3 (Not implemented)",
@@ -32,8 +35,9 @@ export default function App() {
           onChange={(newValue) => {
             if (newValue === "prune") {
               setView("prune")
+            } else if (newValue === "open_ps" || newValue === "open_prs") {
+              setView("open_prs")
             } else {
-              // For unimplemented options, exit immediately.
               process.exit(0)
             }
           }}
@@ -44,6 +48,10 @@ export default function App() {
 
   if (view === "prune") {
     return <PruneBranches onCancel={() => setView("menu")} />
+  }
+
+  if (view === "open_prs") {
+    return <OpenPRs onCancel={() => setView("menu")} />
   }
 
   return null
