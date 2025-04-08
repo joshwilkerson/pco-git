@@ -4,9 +4,12 @@ import { Select } from "@inkjs/ui"
 import chalk from "chalk"
 import PruneBranches from "./prune_branches.js"
 import OpenPRs from "./open_prs.js"
+import Dependabot from "./dependabot.js"
 
 export default function App() {
-  const [view, setView] = useState<"menu" | "prune" | "open_prs">("menu")
+  const [view, setView] = useState<
+    "menu" | "prune" | "open_prs" | "dependabot"
+  >("menu")
 
   if (view === "menu") {
     return (
@@ -28,8 +31,8 @@ export default function App() {
               value: "open_prs",
             },
             {
-              label: "Option 3 (Not implemented)",
-              value: "option3",
+              label: `Dependabot PRs ${chalk.gray("(merge branchs w/ open PRs to staging)")}`,
+              value: "dependabot",
             },
           ]}
           onChange={(newValue) => {
@@ -37,6 +40,8 @@ export default function App() {
               setView("prune")
             } else if (newValue === "open_ps" || newValue === "open_prs") {
               setView("open_prs")
+            } else if (newValue === "dependabot") {
+              setView("dependabot")
             } else {
               process.exit(0)
             }
@@ -52,6 +57,10 @@ export default function App() {
 
   if (view === "open_prs") {
     return <OpenPRs onCancel={() => setView("menu")} />
+  }
+
+  if (view === "dependabot") {
+    return <Dependabot onCancel={() => setView("menu")} />
   }
 
   return null
