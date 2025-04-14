@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v devbox >/dev/null 2>&1; then
+  echo "You must be running devbox to use this script."
+  exit 1
+fi
+
+devbox run -c "$SCRIPT_DIR/.." start $@
