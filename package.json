@@ -14,7 +14,9 @@
     "test": "prettier --check .",
     "format": "prettier --write ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
     "ink": "^5.2.0",
@@ -34,5 +36,6 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "webpack": "^5.98.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }
